@@ -1,6 +1,6 @@
 /* global contract artifacts before it */
 
-import { ether } from "@openzeppelin/test-helpers"
+import { ether } from '@openzeppelin/test-helpers'
 
 const Environments = require('../src/relayclient/Environments')
 
