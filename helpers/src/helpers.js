@@ -2,14 +2,16 @@ const fs = require('fs')
 const axios = require('axios')
 const sleep = require('../../src/common/utils').sleep
 const utils = require('web3').utils
-const { merge } = require('lodash')
+const Web3 = require('web3')
+const HDWalletProvider = require('truffle-hdwallet-provider')
 
 // compiled folder populated by "prepublish"
 const compiledFolder = '../compiled/'
-const relayHub = require( compiledFolder+'RelayHub.json')
-const stakeManager = require( compiledFolder+'StakeManager.json')
-const penalizer = require( compiledFolder+'Penalizer.json')
-const paymaster = require( compiledFolder+'TestPaymasterEverythingAccepted.json' )
+const relayHub = require(compiledFolder + 'RelayHub.json')
+const stakeManager = require(compiledFolder + 'StakeManager.json')
+const penalizer = require(compiledFolder + 'Penalizer.json')
+const paymaster = require(compiledFolder + 'TestPaymasterEverythingAccepted.json')
+const forwarder = require(compiledFolder + 'TrustedForwarder.json')
 
 const ether = function (value) {
   return new utils.BN(utils.toWei(value, 'ether'))
@@ -21,7 +23,7 @@ const fromWei = function (wei) {
 
 async function defaultFromAccount (web3, from = null) {
   if (from) return from
-  const requiredBalance = ether('10')
+  const requiredBalance = ether('2')
 
   try {
     const accounts = await web3.eth.getAccounts()
@@ -95,6 +97,13 @@ function getPaymaster (web3, address, options = {}) {
   })
 }
 
+function getForwarder (web3, address, options = {}) {
+  return new web3.eth.Contract(forwarder.abi, address, {
+    data: forwarder.bytecode,
+    ...options
+  })
+}
+
 function saveContractToFile (contract, workdir, filename) {
   fs.mkdirSync(workdir, { recursive: true })
   fs.writeFileSync(workdir + '/' + filename, `{ "address": "${contract.options.address}" }`)
@@ -103,6 +112,15 @@ function saveContractToFile (contract, workdir, filename) {
 async function isRelayHubDeployed (web3, hubAddress) {
   const code = await web3.eth.getCode(hubAddress)
   return code.length > 2
+}
+
+function getWeb3 (nodeURL) {
+  if (process.env.HDWALLET_KEY) {
+    console.log('Using hd wallet provider with mnemonic')
+    return new Web3(new HDWalletProvider(process.env.HDWALLET_KEY, nodeURL))
+  } else {
+    return new Web3(nodeURL)
+  }
 }
 
 module.exports = {
@@ -114,8 +132,10 @@ module.exports = {
   getStakeManager,
   getPenalizer,
   getPaymaster,
+  getForwarder,
   isRelayHubDeployed,
   isRelayReady,
   waitForRelay,
-  saveContractToFile
+  saveContractToFile,
+  getWeb3
 }
