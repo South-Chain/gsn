@@ -15,7 +15,7 @@ const { expectEvent } = require('@openzeppelin/test-helpers')
 
 const RelayRequest = require('../src/common/EIP712/RelayRequest')
 
-contract.only('TrustedBatchForwarder', ([from, relayManager, relayWorker, relayOwner]) => {
+contract('TrustedBatchForwarder', ([from, relayManager, relayWorker, relayOwner]) => {
   let paymaster, recipient, hub, forwarder
   let sharedRelayRequestData
   const chainId = Environments.defEnv.chainId
