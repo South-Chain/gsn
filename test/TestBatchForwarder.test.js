@@ -2,11 +2,12 @@
 
 import { ether } from '@openzeppelin/test-helpers'
 
-const Environments = require('../src/relayclient/Environments')
+const Environments = require('../src/relayclient/types/Environments')
 
 const TestPaymasterEverythingAccepted = artifacts.require('TestPaymasterEverythingAccepted.sol')
 const RelayHub = artifacts.require('RelayHub.sol')
 const StakeManager = artifacts.require('StakeManager')
+const Penalizer = artifacts.require('Penalizer')
 const TrustedBatchForwarder = artifacts.require('./TrustedBatchForwarder.sol')
 const TestRecipient = artifacts.require('TestRecipient.sol')
 const { getEip712Signature } = require('../src/common/utils')
@@ -15,16 +16,17 @@ const { expectEvent } = require('@openzeppelin/test-helpers')
 
 const RelayRequest = require('../src/common/EIP712/RelayRequest')
 
-contract('TrustedBatchForwarder', ([from, relayManager, relayWorker, relayOwner]) => {
+contract.only('TrustedBatchForwarder', ([from, relayManager, relayWorker, relayOwner]) => {
   let paymaster, recipient, hub, forwarder
   let sharedRelayRequestData
-  const chainId = Environments.defEnv.chainId
+  const chainId = Environments.defaultEnvironment.chainId
 
   before(async () => {
     const paymasterDeposit = 1e18.toString()
 
     const stakeManager = await StakeManager.new()
-    hub = await RelayHub.new(Environments.defEnv.gtxdatanonzero, stakeManager.address, { gas: 10000000 })
+    const penalizer = await Penalizer.new()
+    hub = await RelayHub.new(Environments.defaultEnvironment.gtxdatanonzero, stakeManager.address, penalizer.address, { gas: 10000000 })
     const relayHub = hub
     await stakeManager.stakeForAddress(relayManager, 2000, {
       value: ether('2'),
@@ -62,7 +64,7 @@ contract('TrustedBatchForwarder', ([from, relayManager, relayWorker, relayOwner]
     it('should send all methods in the batch', async () => {
       const relayRequest = new RelayRequest({
         ...sharedRelayRequestData,
-        senderNonce: (await hub.getNonce(recipient.address, from)).toString(),
+        senderNonce: (await forwarder.getNonce(from)).toString(),
         target: forwarder.address,
         gasPrice: 1e6.toString(),
         encodedFunction: forwarder.contract.methods.sendBatch([recipient.address, recipient.address],
@@ -99,7 +101,7 @@ contract('TrustedBatchForwarder', ([from, relayManager, relayWorker, relayOwner]
     it('should revert all requests if one fails', async () => {
       const relayRequest = new RelayRequest({
         ...sharedRelayRequestData,
-        senderNonce: (await hub.getNonce(recipient.address, from)).toString(),
+        senderNonce: (await forwarder.getNonce(from)).toString(),
         target: forwarder.address,
         gasPrice: 1e6.toString(),
         encodedFunction: forwarder.contract.methods.sendBatch([recipient.address, recipient.address],
@@ -128,7 +130,7 @@ contract('TrustedBatchForwarder', ([from, relayManager, relayWorker, relayOwner]
     it('should not batch with wrong # of params', async () => {
       const relayRequest = new RelayRequest({
         ...sharedRelayRequestData,
-        senderNonce: (await hub.getNonce(recipient.address, from)).toString(),
+        senderNonce: (await forwarder.getNonce(from)).toString(),
         target: forwarder.address,
         gasPrice: 1e6.toString(),
         encodedFunction: forwarder.contract.methods.sendBatch([recipient.address, recipient.address],
